@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 plt.ioff()
 
 name = 'test'
-runData = pickle.load(open('C:\Users\Jasmin\Documents\Python Scripts\Ftiness and Spread\\' + name, 'r'))
+runData = pickle.load(open('C:\Users\Jasmin\Documents\GitHub\ExtinctionModel\\' + name, 'r'))
    
 functionData = runData[0]
 variable = runData[1]
@@ -23,7 +23,7 @@ meanI = ['NONE']
 maxI = ['NONE']
 birthR = ['NONE']
 deathR = ['NONE']
-intervals = 1000 # how often snapshots were taken
+intervals = 1 # how often snapshots were taken
 
 # Enter directory to save graphs for one run
 parameters = functionData[0][len(functionData[0])-1]
@@ -111,10 +111,9 @@ for i in range(min(variable), max(variable)+1):
     meanI.append('NONE')
     maxI.append('NONE')
 
-#Change Directory
 # Enter directory to save graphs for one run
-#path = 'C:\Users\Jasmin\Documents\Python Scripts\Ftiness and Spread\ ' + str(parameters[8]) + "'"
 os.chdir("..")
+
 print "Birth Rates: ", birthR
 print "Mean fitnesses: ", meanI
 print "Max fitnesses: ", maxI
@@ -127,10 +126,9 @@ indicesMax = [i for i, x in enumerate(maxI) if x == "NONE"]
 
 # Graphing 
 # mean vs time for each var (recomb)
-for p in range(0, len(variable)):
+for p in range(min(variable), max(variable)+1):
     # Recomb value [x-value]
     var = variable[p]
-    varType = 'T'
     
     beg = indicesMean[p] + 1
     end = indicesMean[p+1]
@@ -141,21 +139,21 @@ for p in range(0, len(variable)):
     
     time = [j * intervals for j in range(0, len(chunk1))]
     #time[:] = [x/1000000. for x in time]
-    plt.plot(time, chunk1, '.r-')
-    plt.plot(time, chunk2, '.b-')
-    plt.xlabel('Iterations')
-    plt.ylabel('Lower Fitness --->')
-    plt.legend(['Avg fitness', 'Max fitness'], loc='upper left')
-    plt.savefig(varType + str(parameters[8]) + '.png')
-        
-    # Save figure and clear screen
-    plt.close();
-#print "BEGIN ALL DATA --------------------------------------------------------"
-#print runData
-#print "END ALL DATA ----------------------------------------------------------"
-#print 'Birthrate: ', birthR
-#print 'Deathrate: ', deathR
-#print 'Mean fitnesses: ', meanI
-#print 'Maximum fitnesses: ', maxI
     
-
+    #Plot average
+    plt.plot(time, chunk1, '.r-')      
+    plt.ylim(0,max(chunk2)+10)  
+    plt.xlabel('Iterations')
+    plt.ylabel('Lower Fitness --->')    
+    plt.legend(['Avg fitness', 'Max fitness'], loc='upper left')
+    plt.savefig('AVG-T' + str(parameters[8]) + '.png')
+    plt.close();
+    
+    #Plot Max
+    plt.plot(time, chunk2, '.b-')  
+    plt.ylim(0,max(chunk2)+10)  
+    plt.xlabel('Iterations')
+    plt.ylabel('Lower Fitness --->')    
+    plt.legend(['Avg fitness', 'Max fitness'], loc='upper left')
+    plt.savefig('MAX-T' + str(parameters[8]) + '.png')
+    plt.close();

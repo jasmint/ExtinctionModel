@@ -19,6 +19,11 @@ beginf: beginning fitness class
 
 0 --> adapted
 1 --> not adapted
+
+locations: array; keys in population (fitness classes)
+tracking: array; how many individuals in the popoulation are adapted to a 
+          trait; same length as genome 
+
 '''
 
 class RandomChoiceDict(object):
@@ -84,9 +89,8 @@ def ExtTimes(rstr):
     n = k/2.            # initial population size
     genome = 45        # length of initial genomes
     beginf = 40         # beginning fitness class 
-    #rstr =             # strength of recombination
     t = 120.
-    
+    #rstr = 0
     parameters = [b,mu,k,s,u,n,genome,beginf,t]
     '''
     # compare v and i/T   
@@ -103,28 +107,18 @@ def ExtTimes(rstr):
     tracking = [0] * genome
         
     # beginning fitness class
-    population[beginf] = RandomChoiceDict() 
+    population[genome-beginf] = RandomChoiceDict() 
                 
-    # generate genome
-    indiv = ''   
-    indiv = '0' * 40
+    # generate genome in beginning fitness
+    indiv = '0' * beginf
     for a in range(0,genome-beginf):
         indiv = indiv + '1'
-    #for a in range (0,genome):
-    #    indiv = indiv + str(np.random.randint(0, high=2))
     fitness = indiv.count('1')
-            
-    # make sure individual is in the specified fitness class
-    while fitness != beginf:
-        indiv = ''
-        for a in range (0,genome):
-            indiv = indiv + str(np.random.randint(0, high=2))
-        fitness = indiv.count('1')  
-    
+               
     # copy genome into entire population        
     for count in range (0,int(n)):   
         # add individual to fitness class
-        population[beginf][count] = indiv
+        population[genome-beginf][count] = indiv
             
         # update genome tracking
         for d in range (0,genome):
@@ -152,7 +146,7 @@ def ExtTimes(rstr):
     x = -1
     
     pt = int(np.random.exponential(scale=t))
-    pt = 70
+    pt = 10
     
     while True:
         x = x + 1
@@ -161,46 +155,40 @@ def ExtTimes(rstr):
         prb = np.random.random()
         
         if prb <= prbirth: # birth occurs             
+            ofsp = ''
+            # If recombination is used
+            if np.random.randint(100) < rstr:
+                # create random selection index
+                selection = np.random.randint(0, high=2, size=genome)
             
-            # create random selection index
-            selection = np.random.randint(0, high=2, size=genome)
-        
-            # select two random individuals to carry out recombination           
-            parent1pool = population[list(population)[np.random.randint(len(population))]]
-            #pooldict1 = RandomChoiceDict()
-            #for key in parent1pool:
-            #    pooldict1[key] = parent1pool[key]                               
-            parent1 = parent1pool.randomItem()[1]
-            
-            parent2pool = population[list(population)[np.random.randint(len(population))]]
-            #pooldict2 = RandomChoiceDict()
-            #for key in parent1pool:
-            #    pooldict1[key] = 
-            parent2 = parent2pool.randomItem()[1]
-              
-            if np.random.randint(100) <= rstr:
-                ofsp = ''   
+                # select two random inidividuals (parents)          
+                parent1pool = population[list(population)[np.random.randint(len(population))]]
+                parent1 = parent1pool.randomItem()[1]                
+                parent2pool = population[list(population)[np.random.randint(len(population))]]
+                parent2 = parent2pool.randomItem()[1]              
+                
+                # carry out recombination
                 for y in range (0,genome):
                     if selection[y] == 0:
                         ofsp = ofsp + parent1[y]
                     else:
-                        ofsp = ofsp + parent2[y]
+                        ofsp = ofsp + parent2[y]            
+            # otherwise, clonal 
             else:
-                ofsp = parent1
+                parentpool = population[list(population)[np.random.randint(len(population))]]
+                parent = parentpool.randomItem()[1]    
+                ofsp = parent
             
             # apply random beneficial mutation  
             fitness = ofsp.count('1')       
             mutation = np.random.random()
             limit = fitness * u
-            if mutation <= limit:
-                location = np.random.randint(0, high=genome)
-                if '1' in ofsp and ofsp[location] == '0':
-                    while ofsp[location] == '0':
-                        location = np.random.randint(0, high=genome)
-                    ofsp = ofsp[:location] + '0' + ofsp[location + 1:]
-                else:
-                    ofsp = ofsp[:location] + '0' + ofsp[location + 1:]
-                    
+            if mutation <= limit and '1' in ofsp:
+                location = np.random.randint(0, high=genome)    
+                while ofsp[location] == '0':
+                    location = np.random.randint(0, high=genome)
+                ofsp = ofsp[:location] + '0' + ofsp[location + 1:]
+                   
             # save offspring into fitness class                       
             if fitness in population:
                 population[fitness][count] = ofsp
@@ -239,16 +227,15 @@ def ExtTimes(rstr):
                 
             # select class that experiences death
             fitclass = np.random.choice(locations, p=prbdeath)
-            # prbdeath holds probabilities associated with entries in locations
+            # prbdeath holds probabilities associated with entries in locations (fitness classes)
                 
             # select random individual killed from class
             individual = population[fitclass].randomItem()[0]
                 
             # update genome tracking
+            genes = population[fitclass][individual]
             for f in range (0,genome):
-                genes = population[fitclass][individual]
-                current = genes[f]
-                if current == '0':
+                if genes[f] == '0':
                     tracking[f] = tracking[f] - 1
              
             # delete individual
@@ -267,11 +254,11 @@ def ExtTimes(rstr):
                 cdrSum = cdrSum - (mu + fitclass * s)                    
             
         # break if there are no living individuals
-        if len(population) == 0 or x == 100:
+        if len(population) == 0 or x == 20:
             return [distinfo, parameters]
             
         # environmental change
-        if x == pt :
+        if x == pt:
             
             # add a '1' to end of each genome
             for g in population:
@@ -280,33 +267,81 @@ def ExtTimes(rstr):
             genome = genome + 1
             # update genome tracking, no one is adapted
             tracking.append(0)
+                        
+            #ADDITION-----------------------------------------------------------------
+            # Move every individual back one fitness class 
+            old_keys = []
+            new_keys = []
             
+            # Record old fitness classes and new fitness classes
+            for oldKey in population:
+                old_keys.append(oldKey)
+                newKey = oldKey + 1
+                new_keys.append(newKey)
+            
+            #flip order of each array to prevent overlap
+            def reverse_numeric(x, y):
+                return y - x
+            old_keys = sorted(old_keys, cmp=reverse_numeric)
+            new_keys = sorted(new_keys, cmp=reverse_numeric)              
+                       
+            # Move every class back one.
+            for w in range(0, len(new_keys)): 
+                population[new_keys[w]] = population[old_keys[w]]
+                
+            # Delete fitness classes left unpopulated 
+            for key in old_keys:
+                if key not in new_keys:
+                    del population[key]
+                
+            # recreate locations array
+            locations = [None] * len(population)
+            i = 0
+            for key in population:
+                locations[i] = key
+                i = i + 1
+                
+            #Recalculate deathrate
+            deathrate = 0
+            locations = [None] * len(population)
+            i = 0
+            cdrSum = 0
+            for key in population:
+                cdr = mu + key * s
+                cdrSum = cdrSum + cdr  
+                deathrate = deathrate + cdr * len(population[key].mapping)
+                # create array holding keys in corresponding locations
+                locations[i] = key
+                i = i + 1
+            #ADDITION-----------------------------------------------------------------
+                      
             # check for fully adapted genes
             delete = []
-            for g in range (0,genome-1):                
-                i = 0
-                if tracking[g] == n:
-                    genome = genome - 1
+            for g in range (0,genome):  
+                if tracking[g] == int(n):
                     # erase gene in every individual
-                    for h in population:
-                        for j in population[h].mapping:
-                            patient = population[h][j]
-                            population[h][j] = patient[:g] + patient[g + 1:]
+                    for fit in population:
+                        for single in population[fit].mapping:
+                            patient = population[fit][single]
+                            population[fit][single] = patient[:g] + patient[g + 1:]
                     # store locations of genes to be deleted
-                    delete.append(g)
-                    i = i + 1                   
+                    delete.append(g)         
             
             # erase fully adapted genes in tracking array
-            if len(delete) != 0:
+            if len(delete) > 0:
+                genome = genome - len(delete)
+                delete.sort()
+                shift = 0
                 for h in range(0,len(delete)):
-                    del tracking[delete[h]] 
+                    trait = delete[h] - shift
+                    del tracking[trait] 
+                    shift = shift + 1
                 
             # sample new 't'
             pt = x + int(np.random.exponential(scale=t))
             
         # check distribution of population
-        if x % 1 == 0: #1000 == 0: 
-                
+        if x % 1 == 0:                
             #Store Distribution Information
             pop = {}
             for key in population:
