@@ -76,11 +76,11 @@ from multiprocessing import Pool
 distinfo = []                     
 
 def ExtTimes(rstr):  
-  
+    
     # Parameters
     b = 2.              # intrinsic birth rate
-    N = 20000           # population size
-    s = 0.01         # 
+    N = 10000          # population size
+    s = 0.05            # 
     u = 1e-4            # beneficial mutation rate   
     genome = 50         # length of initial genomes
     beginf = 20         # beginning fitness class 
@@ -88,7 +88,8 @@ def ExtTimes(rstr):
     distGap = float(N)/10
     #rstr = 50                                                                  # change
     parameters = [b,N,s,u,genome,beginf,cleanUp,rstr,distGap]
-    end = 100000001
+    end = 100000000
+
 
     # create initial dictionary to hold possible fitness classes
     population = {}
@@ -114,7 +115,6 @@ def ExtTimes(rstr):
         for d in range (0,genome):
             if indiv[d] == '1':
                 tracking[d] = tracking[d] + 1         
-    
     # calculate initial average fitness
     i = 0
     sumNi = 0  #numerator, sum over ni
@@ -134,10 +134,17 @@ def ExtTimes(rstr):
         for key in population:
             deathSelect.append(float(key[key.index('-')+1:]) / float(N))
         
+        total=0                                                                 #CHECK
+        for key in population:
+            total = total+int(key[key.index('-')+1:]) 
+        if total!=10000:
+            print total
+            print population.keys()
+                
         # select random individual to die
         idenClass = np.random.choice(population.keys(), p=deathSelect)  # key in population
         idenCode = population[idenClass].randomItem()                   # tuple, code, genome 
-        iden = idenCode[0]                                          # individual's code in original dicionary
+        iden = idenCode[0]                                              # individual's code in original dicionary
         fitclassD = idenClass[:idenClass.index('-')]                    # individual's fitness
         individual = population[idenClass][iden]                        # genome
 
@@ -171,8 +178,7 @@ def ExtTimes(rstr):
                 if selection[y] == 0:
                     ofsp = ofsp + parent1[y]
                 else:
-                    ofsp = ofsp + parent2[y] 
-            
+                    ofsp = ofsp + parent2[y]  
         # otherwise, clonal 
         else:
             fitclass = np.random.choice(population.keys(), p=prbBirth)
@@ -192,8 +198,9 @@ def ExtTimes(rstr):
         # erase class if left empty
         if int(newKey[newKey.index('-')+1:]) == 0:                          
             del population[newKey] 
-      
+                
         #RETURN TO BIRTH-------------------------------------------------------    
+               
         # Apply random beneficial mutation  
         chance = np.random.random()
         if chance <= u:
@@ -238,11 +245,19 @@ def ExtTimes(rstr):
             return [distinfo, parameters] #birthPs]
             
         if x%int(end/4)==0:
-            percentDone = x/float(end)           
+            percentDone = x/float(end) *100          
             print str(percentDone) + '% finished'
-            
+           
+        total=0
+        for key in population:                                                  #CHECK
+            total = total+int(key[key.index('-')+1:]) 
+        if total!=10000:
+            print 'FINISHED BIRTH'
+            print total
+            print population.keys()
+                   
         # GENOME CLEAN UP------------------------------------------------------
-        if x % cleanUp ==0:                       
+        if x % cleanUp ==0:                 
             # store locations of genes to be deleted
             delete = []   
             for g in range (0,genome):  
@@ -267,10 +282,11 @@ def ExtTimes(rstr):
                 tracking = [keep for j, keep in enumerate(tracking) if j not in delete]
         
             # Change fitness in keys in population
-            #keys = population.keys()
-            #for o in range(0,len(keys)):
-            for keys in population.iteritems():
-                #key = keys[o]
+            #for key,val in population.items():
+            #    newKey = str(int(key[:key.index('-')])-len(delete)) + key[key.index('-'):]
+            #    population[newKey] = population.pop(key)
+                
+            for keys in population.items():
                 key=keys[0]
                 newKey = str(int(key[:key.index('-')])-len(delete)) + key[key.index('-'):]
                 population[newKey] = population.pop(key)
@@ -280,22 +296,31 @@ def ExtTimes(rstr):
             for key in population:
                 sumNi = sumNi + int(key[:key.index('-')]) * int(key[key.index('-')+1:])     
             avgFit = sumNi/float(N)
-       
+            
+
         # Store data
-        if x % distGap == 0:                
+        if x % distGap == 0:              
             pop = {}
             for a in population.keys():
                 store = int(a[:a.index('-')])
                 pop[store] = int(a[a.index('-')+1:])                              
             pop['extra'] = [x,genome]
             distinfo.append(pop)
-            
+        '''
+        total=0                                                                 #CHECK
+        for key in population:
+            total = total+int(key[key.index('-')+1:]) 
+        if total!=10000:
+            print 'AFTER CLEANUP'
+            print total
+            print population.keys()
+        '''        
 # end function          
-#result = ExtTimes(10)
+'''
+result = ExtTimes(0)
 
-#var = np.arange(0,2)
-
-var = [0,10]
+'''
+var = [0,100]
 
 if __name__ == '__main__':
     pool = Pool(processes=2)
@@ -304,6 +329,5 @@ if __name__ == '__main__':
 store = [result,var]
        
 # store results
-name = '0,10(100mil)Fisher2'
+name = 'Test'
 pickle.dump(store,open(name, 'w'))
-#pickle.dump(result,open(name, 'w'))
