@@ -3,7 +3,7 @@
 Created on Mon Dec 14 14:36:49 2015
 
 @author: Jasmin
- 
+
 """
 import pickle
 import os
@@ -12,25 +12,29 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 plt.ioff()
 
-name = 'Data-0,10TEST2'
+name = 'Test5'
+#runData = pickle.load(open('/mnt/sdb_drive/home/jasmint/Extinction_explicit_genotypes/' + name, 'rb'))
 runData = pickle.load(open('C:\Users\Jasmin\Documents\GitHub\ExtinctionModel\\' + name, 'r'))
 
 #Organize Data
 functionData = runData[0] #data returned from function: [[[{fitness:abund, extra:x},{}][parameters]]]
 parameters = functionData[0][len(functionData[0])-1] #[b,k,n,s,u,genome,beginf,cleanUp,rstr,distGap]
 variable = runData[1] #recombination values passed into function
+mutations = runData[2]
 
 # Enter directory to save graphs for one run
 os.mkdir(str(min(variable))+'-'+str(max(variable)))
 os.chdir(str(min(variable))+'-'+str(max(variable)))
-intervals = parameters[9] #how often snapshots were taken
+
+intervals = parameters[8] #how often snapshots were taken
 
 meanI = ['NONE']
 maxI = ['NONE'] 
 minI = ['NONE']
 width = ['NONE']
-fitVar = ['NONE']  
- 
+fitVar = ['NONE']
+#text_file = open('Birth probabilities', 'w')
+
 # Functiondata[x] where x is the rstr passed into the function(beginning at 0)
 for i in range(0,len(variable)):
     rstr = variable[i]
@@ -38,12 +42,13 @@ for i in range(0,len(variable)):
     
     snapshots = rstrData[0] # snapshots for one run at one rstr - list
     parameters = rstrData[1] # parameters from one run at one rstr:[b,k,n,s,u,genome,beginf,cleanUp,rstr,distGap]
-        
+    #birthPs = rstrData[2]
+    
     # Enter directory for one variable rstr value   
     os.mkdir(str(rstr)+'recomb')
     os.chdir(str(rstr)+'recomb')
-    
     for l in range(0, len(snapshots)): # loop through every snapshot at one rstr value 
+        
         onesnap = snapshots[l]# info from one snapshot - dict
         classes = []
         abund = []             
@@ -55,29 +60,47 @@ for i in range(0,len(variable)):
             if key != 'extra':            
                 classes.append(key)
                 abund.append(onesnap[key])
-
+            #if key == 'extra' and iterationNum%100000==0:
+            #    print onesnap[key][1]
+        ind = []
+        fitnesses =[]
+        for c in range (0,len(abund)): 
+            if abund[c] == 0:
+                ind.append(c)
+                fitnesses.append(classes[c])
+        #print sum(abund)
+              
+        if len(ind) > 0:
+            classes = [keep for j, keep in enumerate(classes) if j not in fitnesses]            
+            for index in sorted(ind, reverse=True):
+                del abund[index]
+        
         # Plot population distribution graphs
-        if l%1 == 0 and l>600000:              
+        if iterationNum%500000==0:
             fig = plt.figure()
             ax = fig.add_subplot(111)
             rects = ax.bar(classes, abund, width=1,align='center')
-            #ax.autoscale(False)        
+            ax.autoscale(False)        
             # Label bar abundances 
             def autolabel(rects):
                 for rect in rects:
                     height = rect.get_height()
                     plt.text(rect.get_x()+rect.get_width()/2., 1.05*height, '%d'%int(height),
                             ha='center', va='bottom')
-                            
+                      
             autolabel(rects)
             ax.set_ylabel('Abundance')
             ax.set_xlabel('Class')
+            #ax.set_xticks((40,68), minor=False)
+            #ax.set_yticks((0,30000), minor=False)
             ax.set_xticks(range(min(classes)-2, max(classes)+2), minor=False)
             ax.set_xticklabels(range(min(classes)-2, max(classes)+2))       
             # Save figure and clear screen
-            plt.savefig('Iter(' + str(l * intervals + intervals) + ').png')
+            plt.savefig('Iter(' + str(iterationNum) + ').png')
             plt.close();
-            
+    os.chdir("..")
+            #text_file.write(str(iterationNum) + ' : ' + str(birthPs[l]) + '\n')
+'''       
         # Calculate mean fitness
         sumI = 0
         for m in range(0, len(classes)):
@@ -110,7 +133,12 @@ for i in range(0,len(variable)):
         minI.append(minimum)        
         
         # Calculate width of distribution
-        width.append(maximum-minimum)        
+        if minimum == 0:
+            width.append(maximum+1)
+        else:
+            width.append(maximum-minimum)    
+        #if width>0:
+            #print l
         
         # Calculate fitness variance 
         N = float(sum(abund))   # population size
@@ -129,11 +157,12 @@ for i in range(0,len(variable)):
     fitVar.append('NONE')
     
     os.chdir("..")
-
+   
+#text_file.close()
 #print means/maxes; NONE between runs of function at one rstr value 
 #print "Mean fitnesses: ", meanI
 #print "Max fitnesses: ", maxI
-
+  
 # Split arrays
 indicesMean = [i for i, x in enumerate(meanI) if x == "NONE"]
 indicesMax = [i for i, x in enumerate(maxI) if x == "NONE"]
@@ -161,7 +190,7 @@ for p in range(0,len(variable)):
     
     #Plot average
     plt.plot(time, meanChunk, '.r-')      
-    plt.ylim(0,max(meanChunk)+10)  
+    plt.ylim(0,max(meanChunk)+5)  
     plt.xlim(0,max(time))
     plt.xlabel('Iterations ('+str(intervals)+')')
     plt.ylabel('Higher Fitness --->')    
@@ -171,7 +200,7 @@ for p in range(0,len(variable)):
     
     # Plot Width
     plt.plot(time, widthChunk, '.g-')      
-    plt.ylim(0,max(widthChunk)+10)  
+    plt.ylim(0,max(widthChunk)+2)  
     plt.xlabel('Iterations ('+str(intervals)+')')
     plt.ylabel('Width of distribution')    
     #plt.legend(['Avg fitness', 'Max fitness'], loc='upper left')
@@ -179,21 +208,27 @@ for p in range(0,len(variable)):
     plt.close();
     
     # Plot fitness variance
-    plt.plot(time, fitVarChunk, '.m-')      
-    plt.ylim(0,max(fitVarChunk)+10)  
-    plt.xlabel('Iterations ('+str(intervals)+')')
+    #avgVar = sum(fitVarChunk[500:])/float(len(fitVarChunk[500:]))
+    #avgVarChunk = [x/float(avgVar) for x in fitVarChunk]
+    #plt.plot(time, avgVarChunk, '.m-')      
+    #plt.ylim(0,max(avgVarChunk)+.04)  
+    #plt.xlabel('Iterations')
+    #plt.ylabel('Fitness variance')    
+    #plt.savefig('FITVAR(AVG)-' + str(var) + 'recomb.png')
+    #plt.close();
+    plt.plot(time, fitVarChunk, '.m-')   
+    plt.ylim(0,max(fitVarChunk)+1)  
+    plt.xlabel('Iterations')
     plt.ylabel('Fitness variance')    
-    #plt.legend(['Avg fitness', 'Max fitness'], loc='upper left')
     plt.savefig('FITVAR-' + str(var) + 'recomb.png')
     plt.close();
-    
-    
+       
     #Plot Max
     plt.plot(time, maxChunk, '.b-')  
-    plt.ylim(0,max(maxChunk)+10)  
+    plt.ylim(0,max(maxChunk)+5)  
     plt.xlabel('Iterations')
     plt.ylabel('Higher Fitness --->')    
     #plt.legend(['Avg fitness', 'Max fitness'], loc='upper left')
     plt.savefig('MAX-' + str(var) + 'recomb.png')
     plt.close();
- 
+'''    

@@ -85,15 +85,17 @@ def ExtTimes(rstr):
     genome = 50         # length of initial genomes
     beginf = 20         # beginning fitness class 
     cleanUp = N         # frequency of genome cleanup (every generation)
-    distGap = float(N)/10
+    distGap = float(N)/10  #frequency of snapshots
     #rstr = 50                                                                  # change
     parameters = [b,N,s,u,genome,beginf,cleanUp,rstr,distGap]
-    end = 100000000
+    end = 1000000     #iterations to run
+    mutationTotal = 0   #total number of mutations
 
 
     # create initial dictionary to hold possible fitness classes
     population = {}
     #birthPs = {}
+    mutationCount = {}    # {iteration#:mutationTotal}
                 
     # array to track genomes
     tracking = [0] * genome
@@ -126,8 +128,7 @@ def ExtTimes(rstr):
     # Number of iterations
     x = -1
     while True:                                                                              
-        x = x + 1 
-        
+        x = x + 1         
         #DEATH ----------------------------------------------------------------       
         #place everyone in a dictionary NOT separated by fitness
         deathSelect = []
@@ -139,8 +140,7 @@ def ExtTimes(rstr):
             total = total+int(key[key.index('-')+1:]) 
         if total!=10000:
             print total
-            print population.keys()
-                
+            print population.keys()                
         # select random individual to die
         idenClass = np.random.choice(population.keys(), p=deathSelect)  # key in population
         idenCode = population[idenClass].randomItem()                   # tuple, code, genome 
@@ -149,8 +149,7 @@ def ExtTimes(rstr):
         individual = population[idenClass][iden]                        # genome
 
         #BIRTH ----------------------------------------------------------------            
-        ofsp = ''    
-        
+        ofsp = ''            
         # Weighted selection of parents 
         z = 0        
         # prbBirth holds probabilities associated with fitness classes (keys in population)
@@ -158,8 +157,7 @@ def ExtTimes(rstr):
         for key in population:                                                    
             prbBirth[z] = (int(key[key.index('-')+1:])/float(N)) * ((int(key[:key.index('-')])-avgFit)*s+1)    # MAPPING
                         # (ni/N) * ((i - muI)s + 1)
-            z = z + 1
-            
+            z = z + 1           
         # If recombination is used
         if np.random.randint(100) < rstr: 
             # select class and random individual from class
@@ -199,8 +197,7 @@ def ExtTimes(rstr):
         if int(newKey[newKey.index('-')+1:]) == 0:                          
             del population[newKey] 
                 
-        #RETURN TO BIRTH-------------------------------------------------------    
-               
+        #RETURN TO BIRTH-------------------------------------------------------                   
         # Apply random beneficial mutation  
         chance = np.random.random()
         if chance <= u:
@@ -213,7 +210,8 @@ def ExtTimes(rstr):
             # Update genome length
             genome = genome + 1
             # extend genome tracking for mutation location
-            tracking.append(0)        
+            tracking.append(0)  
+            mutationCount[x]= mutationTotal+1
            
         # save offspring into fitness class 
         fitness = ofsp.count('1')
@@ -242,12 +240,12 @@ def ExtTimes(rstr):
  
         # break if there are no living individuals
         if len(population) == 0 or x == end:
-            return [distinfo, parameters] #birthPs]
+            return [distinfo, parameters, mutationCount] #birthPs]
             
-        if x%int(end/4)==0:
+        if x% (end/4)==0:
             percentDone = x/float(end) *100          
             print str(percentDone) + '% finished'
-           
+        '''   
         total=0
         for key in population:                                                  #CHECK
             total = total+int(key[key.index('-')+1:]) 
@@ -255,49 +253,56 @@ def ExtTimes(rstr):
             print 'FINISHED BIRTH'
             print total
             print population.keys()
-                   
+        '''           
         # GENOME CLEAN UP------------------------------------------------------
-        if x % cleanUp ==0:                 
-            # store locations of genes to be deleted
-            delete = []   
-            for g in range (0,genome):  
-                if tracking[g] == int(N):                                       
-                    delete.append(g)   
-                    
-            # erase gene in every individual
-            adjust = 0
-            delete.sort()
-            for j in range(0,len(delete)):
-                select = delete[j]
-                for fit in population:
-                    for single in population[fit].mapping:                       # MAPPING
-                        patient = population[fit][single]
-                        population[fit][single] = patient[:select-adjust] + patient[select-adjust + 1:]
-                adjust = adjust + 1
-            
-            # erase fully adapted genes in tracking array
-            if len(delete) > 0:
-                genome = genome - len(delete)
-                delete.sort()
-                tracking = [keep for j, keep in enumerate(tracking) if j not in delete]
-        
-            # Change fitness in keys in population
-            #for key,val in population.items():
-            #    newKey = str(int(key[:key.index('-')])-len(delete)) + key[key.index('-'):]
-            #    population[newKey] = population.pop(key)
+        if x % cleanUp == 0: 
+            if genome < 20:
+                delete = []
+            else:  
+                # store locations of genes to be deleted
+                delete = [] 
+                fitLoss = 0
+                for g in range(0,genome):  
+                    if tracking[g] == int(N):                                       
+                        delete.append(g)
+                        fitLoss = fitLoss+1
+                    if tracking[g] == 0:                                       
+                        delete.append(g)
                 
-            for keys in population.items():
-                key=keys[0]
-                newKey = str(int(key[:key.index('-')])-len(delete)) + key[key.index('-'):]
-                population[newKey] = population.pop(key)
-
-            # recalculate sumNi
-            sumNi = 0  #numerator, sum over ni
-            for key in population:
-                sumNi = sumNi + int(key[:key.index('-')]) * int(key[key.index('-')+1:])     
-            avgFit = sumNi/float(N)
+                if len(delete) == genome:                 
+                    if delete[0] == '1':
+                        fitLoss = fitLoss-1
+                    delete.pop(0)
+                # erase gene in every individual
+                adjust = 0
+                delete.sort()
+                
+                for j in range(0,len(delete)):
+                    select = delete[j]
+                    for fit in population:
+                        for single in population[fit].mapping:                       # MAPPING
+                            patient = population[fit][single]
+                            population[fit][single] = patient[:select-adjust] + patient[select-adjust + 1:]
+                    adjust = adjust + 1
+                
+                # erase fully adapted genes in tracking array
+                if len(delete) > 0:
+                    genome = genome - len(delete)
+                    delete.sort()
+                    tracking = [keep for j, keep in enumerate(tracking) if j not in delete]
             
-
+                # Change fitness in keys in population
+                pop2 = list(population.keys())
+                for key in pop2:
+                    newKey = str(int(key[:key.index('-')])-fitLoss) + key[key.index('-'):]
+                    population[newKey] = population.pop(key)                
+    
+                # recalculate sumNi
+                sumNi = 0  #numerator, sum over ni
+                for key in population:
+                    sumNi = sumNi + int(key[:key.index('-')]) * int(key[key.index('-')+1:])     
+                avgFit = sumNi/float(N)
+                
         # Store data
         if x % distGap == 0:              
             pop = {}
@@ -316,18 +321,19 @@ def ExtTimes(rstr):
             print population.keys()
         '''        
 # end function          
-'''
+      
 result = ExtTimes(0)
 
 '''
-var = [0,100]
+var = [0,50,100]
 
 if __name__ == '__main__':
-    pool = Pool(processes=2)
+    pool = Pool(processes=3)
     result = pool.map(ExtTimes,var)
 
 store = [result,var]
        
 # store results
-name = 'Test'
+name = 'NoseMutationTest'
 pickle.dump(store,open(name, 'w'))
+'''
