@@ -88,14 +88,12 @@ def ExtTimes(rstr):
     distGap = float(N)/10  #frequency of snapshots
     #rstr = 50                                                                  # change
     parameters = [b,N,s,u,genome,beginf,cleanUp,rstr,distGap]
-    end = 1000000     #iterations to run
-    mutationTotal = 0   #total number of mutations
-
+    end = 10000000       #iterations to run
 
     # create initial dictionary to hold possible fitness classes
     population = {}
     #birthPs = {}
-    mutationCount = {}    # {iteration#:mutationTotal}
+    mutationCount = RandomChoiceDict()    # {iteration#:mutations before nose mutation}
                 
     # array to track genomes
     tracking = [0] * genome
@@ -116,7 +114,8 @@ def ExtTimes(rstr):
         # update genome tracking
         for d in range (0,genome):
             if indiv[d] == '1':
-                tracking[d] = tracking[d] + 1         
+                tracking[d] = tracking[d] + 1  
+    noseFit = beginf
     # calculate initial average fitness
     i = 0
     sumNi = 0  #numerator, sum over ni
@@ -211,7 +210,6 @@ def ExtTimes(rstr):
             genome = genome + 1
             # extend genome tracking for mutation location
             tracking.append(0)  
-            mutationCount[x]= mutationTotal+1
            
         # save offspring into fitness class 
         fitness = ofsp.count('1')
@@ -225,10 +223,17 @@ def ExtTimes(rstr):
             population[existingKey][iden] = ofsp
             newKey = existingKey[:existingKey.index('-')+1] + str(int(existingKey[existingKey.index('-')+1:])+1)
             population[newKey] = population.pop(existingKey)
-        else: # create new fitness class 
+        else: # create new fitness class             
             population[str(fitness)+'-1'] = RandomChoiceDict()
             population[str(fitness)+'-1'][iden] = ofsp
-        
+            if fitness > noseFit:              
+                hold = {}
+                for a in population.keys():
+                    store = int(a[:a.index('-')])
+                    hold[store] = int(a[a.index('-')+1:])   
+                mutationCount[x] = hold         
+                noseFit = fitness
+                
         # update sumNi and average fitness
         sumNi = sumNi - int(fitclassD) + fitness
         avgFit = sumNi / float(N)
@@ -325,10 +330,10 @@ def ExtTimes(rstr):
 result = ExtTimes(0)
 
 '''
-var = [0,50,100]
+var = [0]
 
 if __name__ == '__main__':
-    pool = Pool(processes=3)
+    pool = Pool(processes=1)
     result = pool.map(ExtTimes,var)
 
 store = [result,var]
