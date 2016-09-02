@@ -78,22 +78,22 @@ distinfo = []
 def ExtTimes(rstr):  
     
     # Parameters
-    b = 2.              # intrinsic birth rate
-    N = 10000          # population size
-    s = 0.05            # 
-    u = 1e-4            # beneficial mutation rate   
+    N = 20000          # population size
+    s = 0.01           # 
+    u = 10e-6           # beneficial mutation rate   
+    
     genome = 50         # length of initial genomes
     beginf = 20         # beginning fitness class 
     cleanUp = N         # frequency of genome cleanup (every generation)
-    distGap = float(N)/10  #frequency of snapshots
-    #rstr = 50                                                                  # change
-    parameters = [b,N,s,u,genome,beginf,cleanUp,rstr,distGap]
-    end = 10000000       #iterations to run
+    distGap = float(N)/100  #frequency of snapshots
+    parameters = [N,s,u,genome,beginf,cleanUp,rstr,distGap]
+    
+    end = 20000000       #iterations to run
 
     # create initial dictionary to hold possible fitness classes
     population = {}
     #birthPs = {}
-    mutationCount = RandomChoiceDict()    # {iteration#:mutations before nose mutation}
+    mutationCount = {}    # {iteration#:mutations before nose mutation}
                 
     # array to track genomes
     tracking = [0] * genome
@@ -115,7 +115,9 @@ def ExtTimes(rstr):
         for d in range (0,genome):
             if indiv[d] == '1':
                 tracking[d] = tracking[d] + 1  
-    noseFit = beginf
+                
+    noseFit = indiv.count('1')
+    
     # calculate initial average fitness
     i = 0
     sumNi = 0  #numerator, sum over ni
@@ -147,6 +149,10 @@ def ExtTimes(rstr):
         fitclassD = idenClass[:idenClass.index('-')]                    # individual's fitness
         individual = population[idenClass][iden]                        # genome
 
+        if fitclassD == noseFit:
+             noseFitKey = max(list(population.keys()))
+             noseFit = noseFitKey[:noseFitKey.index('-')]
+    
         #BIRTH ----------------------------------------------------------------            
         ofsp = ''            
         # Weighted selection of parents 
@@ -185,7 +191,7 @@ def ExtTimes(rstr):
         # update genome tracking for death
         for f in range (0,genome):
             if individual[f] == '1':
-                tracking[f] = tracking[f] - 1
+                tracking[f] = tracking[f] - 1                 
                  
         # delete individual
         del population[idenClass][iden]
@@ -195,6 +201,8 @@ def ExtTimes(rstr):
         # erase class if left empty
         if int(newKey[newKey.index('-')+1:]) == 0:                          
             del population[newKey] 
+            newHigh = max(population.keys())
+            noseFit = newHigh[:newHigh.index('-')]
                 
         #RETURN TO BIRTH-------------------------------------------------------                   
         # Apply random beneficial mutation  
@@ -223,17 +231,18 @@ def ExtTimes(rstr):
             population[existingKey][iden] = ofsp
             newKey = existingKey[:existingKey.index('-')+1] + str(int(existingKey[existingKey.index('-')+1:])+1)
             population[newKey] = population.pop(existingKey)
-        else: # create new fitness class             
+        else: # create new fitness class  
             population[str(fitness)+'-1'] = RandomChoiceDict()
             population[str(fitness)+'-1'][iden] = ofsp
-            if fitness > noseFit:              
+            if int(fitness) > int(noseFit):  
+                mutationCount[x] = {}
                 hold = {}
                 for a in population.keys():
                     store = int(a[:a.index('-')])
                     hold[store] = int(a[a.index('-')+1:])   
                 mutationCount[x] = hold         
-                noseFit = fitness
-                
+                noseFit = ofsp.count('1')
+                    
         # update sumNi and average fitness
         sumNi = sumNi - int(fitclassD) + fitness
         avgFit = sumNi / float(N)
@@ -260,7 +269,7 @@ def ExtTimes(rstr):
             print population.keys()
         '''           
         # GENOME CLEAN UP------------------------------------------------------
-        if x % cleanUp == 0: 
+        if False: #x % cleanUp == 0: 
             if genome < 20:
                 delete = []
             else:  
@@ -301,6 +310,9 @@ def ExtTimes(rstr):
                 for key in pop2:
                     newKey = str(int(key[:key.index('-')])-fitLoss) + key[key.index('-'):]
                     population[newKey] = population.pop(key)                
+                
+                noseFitKey = max(list(population.keys()))
+                noseFit = noseFitKey[:noseFitKey.index('-')]
     
                 # recalculate sumNi
                 sumNi = 0  #numerator, sum over ni
@@ -326,7 +338,7 @@ def ExtTimes(rstr):
             print population.keys()
         '''        
 # end function          
-      
+'''
 result = ExtTimes(0)
 
 '''
@@ -339,6 +351,5 @@ if __name__ == '__main__':
 store = [result,var]
        
 # store results
-name = 'NoseMutationTest'
+name = 'N20e3'
 pickle.dump(store,open(name, 'w'))
-'''
