@@ -5,24 +5,6 @@ Created on Thu May 28 14:03:57 2015
 @author: Jasmin
 """
 
-'''
-PARAMETERS
-b: intrinsic birthrate
-mu: intrinsic deathrate
-k: carrying capacity
-s: 
-u: beneficial mutation rate
-n: initial population size
-genome: length of initial genomes
-beginf: beginning fitness class
-
-locations: array; keys in population (fitness classes)
-tracking: array; how many individuals in the popoulation are adapted to a 
-          trait; same length as genome 
-
-dictionary[new_key] = dictionary.pop(old_key)
-'''
-
 class RandomChoiceDict(object):
     def __init__(self):
         self.mapping = {}  # wraps a dictionary
@@ -72,13 +54,14 @@ class RandomChoiceDict(object):
 import numpy as np
 import pickle
 from multiprocessing import Pool 
+import random
 
 distinfo = []                     
 
 def ExtTimes(rstr):  
     
     # Parameters
-    N = 20000          # population size
+    N = 100000          # population size
     s = 0.01           # 
     u = 10e-6           # beneficial mutation rate   
     
@@ -86,14 +69,13 @@ def ExtTimes(rstr):
     beginf = 20         # beginning fitness class 
     cleanUp = N         # frequency of genome cleanup (every generation)
     distGap = float(N)/100  #frequency of snapshots
+    
     parameters = [N,s,u,genome,beginf,cleanUp,rstr,distGap]
     
-    end = 20000000       #iterations to run
+    end = 10000000000      #iterations to run
 
     # create initial dictionary to hold possible fitness classes
     population = {}
-    #birthPs = {}
-    mutationCount = {}    # {iteration#:mutations before nose mutation}
                 
     # array to track genomes
     tracking = [0] * genome
@@ -115,8 +97,6 @@ def ExtTimes(rstr):
         for d in range (0,genome):
             if indiv[d] == '1':
                 tracking[d] = tracking[d] + 1  
-                
-    noseFit = indiv.count('1')
     
     # calculate initial average fitness
     i = 0
@@ -136,57 +116,75 @@ def ExtTimes(rstr):
         for key in population:
             deathSelect.append(float(key[key.index('-')+1:]) / float(N))
         
-        total=0                                                                 #CHECK
-        for key in population:
-            total = total+int(key[key.index('-')+1:]) 
-        if total!=10000:
-            print total
-            print population.keys()                
         # select random individual to die
         idenClass = np.random.choice(population.keys(), p=deathSelect)  # key in population
         idenCode = population[idenClass].randomItem()                   # tuple, code, genome 
         iden = idenCode[0]                                              # individual's code in original dicionary
         fitclassD = idenClass[:idenClass.index('-')]                    # individual's fitness
         individual = population[idenClass][iden]                        # genome
-
-        if fitclassD == noseFit:
-             noseFitKey = max(list(population.keys()))
-             noseFit = noseFitKey[:noseFitKey.index('-')]
-    
+   
         #BIRTH ----------------------------------------------------------------            
         ofsp = ''            
         # Weighted selection of parents 
-        z = 0        
-        # prbBirth holds probabilities associated with fitness classes (keys in population)
+        z = 0
+        sortedKeys = population.keys()
         prbBirth = np.zeros(len(population))
-        for key in population:                                                    
-            prbBirth[z] = (int(key[key.index('-')+1:])/float(N)) * ((int(key[:key.index('-')])-avgFit)*s+1)    # MAPPING
+        check = np.zeros(len(prbBirth))
+        for key in sortedKeys:                                                    
+            prbBirth[z] = (int(key[key.index('-')+1:])/float(N)) * ((int(key[:key.index('-')])-avgFit)*s+1) 
+            check[z] = ((int(key[:key.index('-')])-avgFit)*s+1) # MAPPING
                         # (ni/N) * ((i - muI)s + 1)
-            z = z + 1           
+            z = z + 1    
+            
         # If recombination is used
         if np.random.randint(100) < rstr: 
             # select class and random individual from class
-            fitclass = np.random.choice(population.keys(), p=prbBirth)                                    
+            fitclass = np.random.choice(sortedKeys, p=prbBirth)                                    
             parent1 = population[fitclass][population[fitclass].randomItem()[0]]     
-            
+        
             # select second class and rndom individual
-            fitclass = np.random.choice(population.keys(), p=prbBirth)
+            fitclass = np.random.choice(sortedKeys, p=prbBirth)
             parent2 = population[fitclass][population[fitclass].randomItem()[0]]
             
-            # create random selection index
+            # EXTREME RECOMBINATION selection index
             selection = np.random.randint(0, high=2, size=genome)
             
-            # carry out recombination
+            # REALISTIC RECOMBINATION selection index
+            breaks=int(np.random.normal(1,1))
+            if breaks==0:
+                 breaks=int(np.random.normal(1,1))
+                 if breaks<0:
+                     breaks=np.abs(breaks)
+            locations = random.sample(range(1,genome), breaks)
+            beg=np.random.randint(0,high=2)
+            
+            if beg==0:
+                zero=True
+                selection = '0'
+            else:
+                zero=False
+                selection='1'
+            
+            for i in range(0,genome-1):
+                if i in locations:
+                    zero=not zero
+                if zero:
+                    selection=selection+'0' 
+                else:
+                    selection=selection+'1'                
+            
+            # Carry out recombination
             for y in range (0,genome):
                 if selection[y] == 0:
                     ofsp = ofsp + parent1[y]
                 else:
                     ofsp = ofsp + parent2[y]  
+            
         # otherwise, clonal 
         else:
-            fitclass = np.random.choice(population.keys(), p=prbBirth)
+            fitclass = np.random.choice(sortedKeys, p=prbBirth)
             ofsp = population[fitclass].randomItem()[1]          
-      
+       
         #COMPLETE DEATH--------------------------------------------------------
         # update genome tracking for death
         for f in range (0,genome):
@@ -201,9 +199,7 @@ def ExtTimes(rstr):
         # erase class if left empty
         if int(newKey[newKey.index('-')+1:]) == 0:                          
             del population[newKey] 
-            newHigh = max(population.keys())
-            noseFit = newHigh[:newHigh.index('-')]
-                
+
         #RETURN TO BIRTH-------------------------------------------------------                   
         # Apply random beneficial mutation  
         chance = np.random.random()
@@ -234,15 +230,7 @@ def ExtTimes(rstr):
         else: # create new fitness class  
             population[str(fitness)+'-1'] = RandomChoiceDict()
             population[str(fitness)+'-1'][iden] = ofsp
-            if int(fitness) > int(noseFit):  
-                mutationCount[x] = {}
-                hold = {}
-                for a in population.keys():
-                    store = int(a[:a.index('-')])
-                    hold[store] = int(a[a.index('-')+1:])   
-                mutationCount[x] = hold         
-                noseFit = ofsp.count('1')
-                    
+                  
         # update sumNi and average fitness
         sumNi = sumNi - int(fitclassD) + fitness
         avgFit = sumNi / float(N)
@@ -254,22 +242,10 @@ def ExtTimes(rstr):
  
         # break if there are no living individuals
         if len(population) == 0 or x == end:
-            return [distinfo, parameters, mutationCount] #birthPs]
-            
-        if x% (end/4)==0:
-            percentDone = x/float(end) *100          
-            print str(percentDone) + '% finished'
-        '''   
-        total=0
-        for key in population:                                                  #CHECK
-            total = total+int(key[key.index('-')+1:]) 
-        if total!=10000:
-            print 'FINISHED BIRTH'
-            print total
-            print population.keys()
-        '''           
+            return [distinfo, parameters]
+          
         # GENOME CLEAN UP------------------------------------------------------
-        if False: #x % cleanUp == 0: 
+        if x % cleanUp == 0 and x>5: 
             if genome < 20:
                 delete = []
             else:  
@@ -310,10 +286,7 @@ def ExtTimes(rstr):
                 for key in pop2:
                     newKey = str(int(key[:key.index('-')])-fitLoss) + key[key.index('-'):]
                     population[newKey] = population.pop(key)                
-                
-                noseFitKey = max(list(population.keys()))
-                noseFit = noseFitKey[:noseFitKey.index('-')]
-    
+                    
                 # recalculate sumNi
                 sumNi = 0  #numerator, sum over ni
                 for key in population:
@@ -328,18 +301,14 @@ def ExtTimes(rstr):
                 pop[store] = int(a[a.index('-')+1:])                              
             pop['extra'] = [x,genome]
             distinfo.append(pop)
-        '''
-        total=0                                                                 #CHECK
-        for key in population:
-            total = total+int(key[key.index('-')+1:]) 
-        if total!=10000:
-            print 'AFTER CLEANUP'
-            print total
-            print population.keys()
-        '''        
+        
 # end function          
 '''
 result = ExtTimes(0)
+var = [0]
+name = 'TEST'
+store = [result,var]
+#pickle.dump(store,open(name, 'w'))
 
 '''
 var = [0]
@@ -351,5 +320,5 @@ if __name__ == '__main__':
 store = [result,var]
        
 # store results
-name = 'N20e3'
+name = 'TEST2'
 pickle.dump(store,open(name, 'w'))
