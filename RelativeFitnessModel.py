@@ -72,7 +72,7 @@ def ExtTimes(rstr):
     
     parameters = [N,s,u,genome,beginf,cleanUp,rstr,distGap]
     
-    end = 10000000000      #iterations to run
+    end = 10000000      #iterations to run
 
     # create initial dictionary to hold possible fitness classes
     population = {}
@@ -147,7 +147,7 @@ def ExtTimes(rstr):
             parent2 = population[fitclass][population[fitclass].randomItem()[0]]
             
             # EXTREME RECOMBINATION selection index
-            selection = np.random.randint(0, high=2, size=genome)
+            #selection = np.random.randint(0, high=2, size=genome)
             
             # REALISTIC RECOMBINATION selection index
             breaks=int(np.random.normal(1,1))
@@ -320,5 +320,5 @@ if __name__ == '__main__':
 store = [result,var]
        
 # store results
-name = 'TEST2'
+name = 'TEST'
 pickle.dump(store,open(name, 'w'))
