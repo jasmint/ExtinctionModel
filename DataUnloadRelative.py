@@ -12,18 +12,18 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 plt.ioff()
 
-name = 'TEST2'
+name = 'r=off'
 #runData = pickle.load(open('/mnt/sdb_drive/home/jasmint/Extinction_explicit_genotypes/' + name, 'rb'))
 runData = pickle.load(open('C:\Users\Jasmin\Documents\GitHub\ExtinctionModel\\' + name, 'r'))
 
 #Organize Data
 functionData = runData[0] #data returned from function: [[[{fitness:abund, extra:x},{}][parameters]]]
-parameters = functionData[1] #[k,n,s,u,genome,beginf,cleanUp,rstr,distGap]
+parameters = functionData[0][1] #[k,n,s,u,genome,beginf,cleanUp,rstr,distGap]
 variable = runData[1] #recombination values passed into function
 
 #Enter directory to save graphs for one run
-os.mkdir(str(min(variable))+'-'+str(max(variable)))
-os.chdir(str(min(variable))+'-'+str(max(variable)))
+os.mkdir(str(min(variable))+'-'+str(max(variable))+name)
+os.chdir(str(min(variable))+'-'+str(max(variable))+name)
 
 intervals = parameters[7] #how often snapshots were taken
 
@@ -33,30 +33,48 @@ minI = ['NONE']
 width = ['NONE']
 fitVar = ['NONE']
 
+genomes = []
+
 # Functiondata[x] where x is the rstr passed into the function(beginning at 0)
 for i in range(0,len(variable)):
     rstr = variable[i]
-    rstrData = functionData[i] # data for one run at one rstr
-    
-    snapshots = functionData[i] #rstrData[0] # snapshots for one run at one rstr - list
+    rstrData = functionData[i] # data for one run at one rstr    
+    snapshots = rstrData[0] #rstrData[0] # snapshots for one run at one rstr - list
     parameters = rstrData[1] # parameters from one run at one rstr:[b,k,n,s,u,genome,beginf,cleanUp,rstr,distGap]
     
     # Enter directory for one variable rstr value   
     os.mkdir(str(rstr)+'recomb')
     os.chdir(str(rstr)+'recomb')
-        
-    for l in range(0, len(snapshots)): # loop through every snapshot at one rstr value         
+    genomes.append('rstr'+str(rstr))     
+    for l in range(0, len(snapshots)): # loop through every snapshot at one rstr value                
         onesnap = snapshots[l]# info from one snapshot - dict
         classes = []
-        abund = []             
-                
+        abund = []                             
         iterationNum = l*intervals #onesnap['extra'][0]                        #BP
-             
+        
         #Pull distribution fitness/abundances data into two arrays
         for key in onesnap: 
             if key != 'extra':            
                 classes.append(key)
                 abund.append(onesnap[key])
+            if key=='extra':
+                genomes.append(onesnap[key][0])
+        '''
+        total = 0
+        switch=[]
+        for i in range(0,len(genomes)):
+            j=genomes[i]
+            if j=='rstr0':
+                switch.append(j)
+            if j=='rstr10':
+                switch.append(total/float((len(genomes)-2)/2))
+                total==0
+                switch.append(j)
+            if j!='rstr0' and j!='rstr10':
+                total=total+int(genomes[i])
+        
+        switch.append(total/float((len(genomes)-2)/2))
+        '''        
                 
         #Erase empty classes if left in dictionary
         ind = []

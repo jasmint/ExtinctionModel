@@ -62,8 +62,9 @@ def ExtTimes(rstr):
     
     # Parameters
     N = 100000          # population size
-    s = 0.01           # 
-    u = 10e-6           # beneficial mutation rate   
+    s = 0.01            
+    u = .0001           # beneficial mutation rate  
+    r = .5              #breaks/locus (locus = 1 or 0)
     
     genome = 50         # length of initial genomes
     beginf = 20         # beginning fitness class 
@@ -72,7 +73,7 @@ def ExtTimes(rstr):
     
     parameters = [N,s,u,genome,beginf,cleanUp,rstr,distGap]
     
-    end = 10000000      #iterations to run
+    end = 100000000      #iterations to run
 
     # create initial dictionary to hold possible fitness classes
     population = {}
@@ -145,37 +146,40 @@ def ExtTimes(rstr):
             # select second class and rndom individual
             fitclass = np.random.choice(sortedKeys, p=prbBirth)
             parent2 = population[fitclass][population[fitclass].randomItem()[0]]
-            
+            '''
             # EXTREME RECOMBINATION selection index
-            #selection = np.random.randint(0, high=2, size=genome)
-            
+            selection = np.random.randint(0, high=2, size=genome)
+            '''
             # REALISTIC RECOMBINATION selection index
-            breaks=int(np.random.normal(1,1))
+            breaks = r*genome #(L=#of loci OR genome length)
+            
             if breaks==0:
                  breaks=int(np.random.normal(1,1))
                  if breaks<0:
                      breaks=np.abs(breaks)
-            locations = random.sample(range(1,genome), breaks)
+            breaks = int(breaks)
+            loc = random.sample(xrange(genome),breaks)
             beg=np.random.randint(0,high=2)
             
             if beg==0:
                 zero=True
-                selection = '0'
+                #selection = '0'
             else:
                 zero=False
-                selection='1'
-            
-            for i in range(0,genome-1):
-                if i in locations:
-                    zero=not zero
+                #selection='1'
+            selection = ''
+            for i in range(0,genome):
+                if i in loc:
+                    zero= not zero
                 if zero:
                     selection=selection+'0' 
                 else:
                     selection=selection+'1'                
             
             # Carry out recombination
+            ofsp=''
             for y in range (0,genome):
-                if selection[y] == 0:
+                if selection[y] == '0':
                     ofsp = ofsp + parent1[y]
                 else:
                     ofsp = ofsp + parent2[y]  
@@ -304,14 +308,14 @@ def ExtTimes(rstr):
         
 # end function          
 '''
-result = ExtTimes(0)
+result = ExtTimes(10)
 var = [0]
 name = 'TEST'
 store = [result,var]
 #pickle.dump(store,open(name, 'w'))
 
 '''
-var = [0]
+var = [10]
 
 if __name__ == '__main__':
     pool = Pool(processes=1)
@@ -320,5 +324,5 @@ if __name__ == '__main__':
 store = [result,var]
        
 # store results
-name = 'TEST'
+name = 'r=.5'
 pickle.dump(store,open(name, 'w'))
