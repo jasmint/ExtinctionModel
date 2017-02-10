@@ -55,16 +55,25 @@ import numpy as np
 import pickle
 from multiprocessing import Pool 
 import random
+import matplotlib.pyplot as plt
+import matplotlib.colors as clr
+norm=clr.Normalize(0,255)
+#plt.ioff()
+
+#Color key
+
 
 distinfo = []                     
 
 def ExtTimes(rstr):  
-    
+
+    file=open("backup.txt","w")
+
     # Parameters
-    N = 100000          # population size
+    N = 100          # population size
     s = 0.01            
     u = .0001           # beneficial mutation rate  
-    r = .5              #breaks/locus (locus = 1 or 0)
+    r = .05             #breaks/locus (locus = 1 or 0)
     
     genome = 50         # length of initial genomes
     beginf = 20         # beginning fitness class 
@@ -73,7 +82,7 @@ def ExtTimes(rstr):
     
     parameters = [N,s,u,genome,beginf,cleanUp,rstr,distGap]
     
-    end = 100000000      #iterations to run
+    end = 10000       #iterations to run
 
     # create initial dictionary to hold possible fitness classes
     population = {}
@@ -106,6 +115,26 @@ def ExtTimes(rstr):
         sumNi = sumNi + int(key[:key.index('-')]) * int(key[key.index('-')+1:])              
         i = i + 1
     avgFit = sumNi/float(N)
+    
+    #Graph first column, all identical
+    genomesTrack = [indiv]*N
+    fitnessTrack = [beginf]*N   
+    colorBank = {}
+    
+    time=0
+    x=[time]*N  
+
+    colorCodes = np.random.randint(0,256,3)    
+    c1=colorCodes[0]
+    c2=colorCodes[1]
+    c3=colorCodes[2] 
+    color=str((c1,c2,c3))
+    colorBank[beginf]=color
+    
+    plt.plot(x, range(1,N+1),color=color)
+    plt.xlabel('Time')
+    plt.ylabel('Individuals')
+    time=time+1 #increase time     
     
     # Number of iterations
     x = -1
@@ -203,7 +232,7 @@ def ExtTimes(rstr):
         # erase class if left empty
         if int(newKey[newKey.index('-')+1:]) == 0:                          
             del population[newKey] 
-
+        
         #RETURN TO BIRTH-------------------------------------------------------                   
         # Apply random beneficial mutation  
         chance = np.random.random()
@@ -243,7 +272,35 @@ def ExtTimes(rstr):
         for e in range (0,genome):
             if ofsp[e] == '1':
                 tracking[e] = tracking[e] + 1
- 
+                
+        #Delete dead indiv from array
+        fitLoc = genomesTrack.index(individual)
+        genomesTrack.remove(individual)
+        del fitnessTrack[fitLoc]
+                
+        #Place new individual into proper location
+        found=False
+        if ofsp in genomesTrack: #if genome exists
+            insertLoc=genomesTrack.index(ofsp)
+            fitnessTrack.insert(insertLoc,fitness)
+            genomesTrack.insert(insertLoc,ofsp)
+            found=True
+        if found==False and fitness < fitnessTrack[len(fitnessTrack)-1]:
+            fitnessTrack.append(fitness)
+            genomesTrack.append(ofsp)
+            found=True
+        if found==False and fitness > fitnessTrack[0]:
+            fitnessTrack.insert(0,fitness)
+            genomesTrack.insert(0,ofsp)
+            found=True
+        if found==False: #gap in distribution check
+            for f in range(0,len(fitnessTrack)-1):
+                if found==False and fitness > fitnessTrack[f]:
+                    insertLoc=f
+                    found=True        
+            fitnessTrack.insert(f,fitness)
+            genomesTrack.append(f,ofsp)
+            
         # break if there are no living individuals
         if len(population) == 0 or x == end:
             return [distinfo, parameters]
@@ -296,15 +353,60 @@ def ExtTimes(rstr):
                 for key in population:
                     sumNi = sumNi + int(key[:key.index('-')]) * int(key[key.index('-')+1:])     
                 avgFit = sumNi/float(N)
-                
+         
+            pop = {}
+            file.write('[')
+            for a in population.keys():
+                store = int(a[:a.index('-')])
+                pop[store] = int(a[a.index('-')+1:]) 
+                file.write(str(store)+':'+str(pop[store])+']')                           
+            pop['extra'] = [x,genome]
+            distinfo.append(pop)
+        
         # Store data
         if x % distGap == 0:              
             pop = {}
             for a in population.keys():
                 store = int(a[:a.index('-')])
-                pop[store] = int(a[a.index('-')+1:])                              
+                pop[store] = int(a[a.index('-')+1:]) 
             pop['extra'] = [x,genome]
-            distinfo.append(pop)
+            distinfo.append(pop)   
+            
+            
+            #graph new column        
+            colorCodes = np.random.randint(0,256,3)            
+            c1=str(colorCodes[0])
+            c2=str(colorCodes[1])
+            c3=str(colorCodes[2])
+            color = 
+            colorBank.append(color)
+            
+            start=fitnessTrack[0]
+            y=[]
+            ymarker=1
+            
+            for q in range(1,len(fitnessTrack)-2):
+                if fitnessTrack[q]<start:
+                    if fitnessTrack[q-1] in colorBank.keys():
+                        color=colorBank[q-1]
+                    else:
+                        colorCodes = np.random.randint(0,256,3)    
+                        c1=colorCodes[0]
+                        c2=colorCodes[1]
+                        c3=colorCodes[2] 
+                        color=str((c1,c2,c3))
+                        colorBank[q-1]=color
+                    plt.plot([time]*len(y),y,color=color)
+                    y=[]
+                    start=fitnessTrack[q]
+                else:
+                    y.append(ymarker)
+                    ymarker=ymarker+1
+            
+            time=time+1 #increase time      
+            '''
+            #move over on x-axis
+            time=time+1
         
 # end function          
 '''
@@ -324,5 +426,5 @@ if __name__ == '__main__':
 store = [result,var]
        
 # store results
-name = 'r=.5'
+name = 'r=.03'
 pickle.dump(store,open(name, 'w'))
