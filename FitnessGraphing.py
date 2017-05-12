@@ -56,6 +56,7 @@ import pickle
 from multiprocessing import Pool 
 import random
 import matplotlib.pyplot as plt
+#plt.switch_backend('agg')
 #plt.ion()                                                                        # overlap graphing?
 
 distinfo = []                     
@@ -65,7 +66,7 @@ def ExtTimes(rstr):
     file=open("backup.txt","w")
 
     # Parameters
-    N = 100          # population size
+    N = 500          # population size
     s = 0.01            
     u = .0001           # beneficial mutation rate  
     r = .05             #breaks/locus (locus = 1 or 0)
@@ -77,7 +78,7 @@ def ExtTimes(rstr):
     
     parameters = [N,s,u,genome,beginf,cleanUp,rstr,distGap]
     
-    end = 10000       #iterations to run
+    end = 100000       #iterations to run
 
     # create initial dictionary to hold possible fitness classes
     population = {}
@@ -123,7 +124,7 @@ def ExtTimes(rstr):
     c2=colorCodes[1]/256.
     c3=colorCodes[2]/256.
     color=(c1,c2,c3)
-    colorBank[beginf]=color
+    colorBank[indiv]=color
     
     plt.plot(x, range(1,N+1),color=color)
     time=time+1 #increase time     
@@ -214,7 +215,13 @@ def ExtTimes(rstr):
         # update genome tracking for death
         for f in range (0,genome):
             if individual[f] == '1':
-                tracking[f] = tracking[f] - 1                 
+                tracking[f] = tracking[f] - 1 
+        
+        #Delete dead individual from graphing genome tracking 
+        print individual 
+        fitLoc = genomesTrack.index(individual)        
+        fitnessTrack.pop(fitLoc)
+        genomesTrack.remove(individual)
                  
         # delete individual
         del population[idenClass][iden]
@@ -239,6 +246,13 @@ def ExtTimes(rstr):
             genome = genome + 1
             # extend genome tracking for mutation location
             tracking.append(0)  
+            
+            #update graphing data
+            colorBank2 = list(colorBank.keys())
+            for key in colorBank2:
+                print key
+                newKey = key+'0'
+                colorBank[newKey] = colorBank.pop(key)    
            
         # save offspring into fitness class 
         fitness = ofsp.count('1')
@@ -263,12 +277,7 @@ def ExtTimes(rstr):
         # update genome tracking for birth
         for e in range (0,genome):
             if ofsp[e] == '1':
-                tracking[e] = tracking[e] + 1
-                
-        #Delete dead individual from graphing genome tracking 
-        fitLoc = genomesTrack.index(individual)        
-        fitnessTrack.pop(fitLoc)
-        genomesTrack.remove(individual)    
+                tracking[e] = tracking[e] + 1  
         
         #Place new individual into proper location
         found=False
@@ -277,7 +286,7 @@ def ExtTimes(rstr):
             fitnessTrack.insert(insertLoc,fitness)
             genomesTrack.insert(insertLoc,ofsp)
             found=True
-        if found==False and fitness < fitnessTrack[len(fitnessTrack)-1]: #if fitness of offsping < lowest existing fitness
+        if found==False and fitness < fitnessTrack[-1]: #if fitness of offsping < lowest existing fitness
             fitnessTrack.append(fitness)
             genomesTrack.append(ofsp)
             found=True
@@ -295,6 +304,8 @@ def ExtTimes(rstr):
             
         # break if there are no living individuals
         if len(population) == 0 or iterations == end:
+            plt.show()
+            plt.savefig('Final')
             return [distinfo, parameters]
           
         # GENOME CLEAN UP------------------------------------------------------
@@ -372,30 +383,70 @@ def ExtTimes(rstr):
                 pop[store] = int(a[a.index('-')+1:]) 
             pop['extra'] = [x,genome]
             distinfo.append(pop)   
-            
+        '''   
         #Graph new column 
-        if iterations%1==0:
+        if iterations%100==0:
             start=fitnessTrack[0]
             y=[]
             ymarker=1           
             for q in range(1,len(fitnessTrack)-2):                             # add boundaries
                 if fitnessTrack[q]<start:
                     if fitnessTrack[q]+1 in colorBank.keys():
-                        color=colorBank[fitnessTrack[q]+1]
+                        color=colorBank[genomesTrack[q]+1]
                     else:
                         colorCodes = np.random.randint(0,256,3)    
                         c1=colorCodes[0]/256.
                         c2=colorCodes[1]/256.
                         c3=colorCodes[2]/256.
                         color=(c1,c2,c3)
-                        colorBank[fitnessTrack[q]+1]=color
+                        colorBank[[q]+1]=color
                     plt.plot([time]*len(y),y,color=color)
                     y=[]
                     start=fitnessTrack[q]
                 else:
                     y.append(ymarker)
                     ymarker=ymarker+1
-            
+            plt.show()
+        '''
+        if iterations%10==0:
+            time=time+1
+            start=genomesTrack[0]
+            height=[0]
+            ymarker=1 
+            p=1
+            for q in range(0,len(fitnessTrack)-1):                             # add boundaries
+                if genomesTrack[p]!= start:
+                    if genomesTrack[p-1] in colorBank.keys():
+                        color=colorBank[genomesTrack[p-1]]
+                    else:
+                        colorCodes = np.random.randint(0,256,3)    
+                        c1=colorCodes[0]/256.
+                        c2=colorCodes[1]/256.
+                        c3=colorCodes[2]/256.
+                        color=(c1,c2,c3)
+                        colorBank[genomesTrack[p-1]]=color 
+                    height.append(height[-1]+1)
+                    plt.plot([time]*(len(height)),height,color=color)                   
+                    height=[height[-1]]
+                    start=genomesTrack[p]
+                    p=p+1
+                    ymarker=ymarker+1
+                else:
+                    p=p+1
+                    height.append(ymarker)
+                    ymarker=ymarker+1 
+                if p==len(genomesTrack):
+                    if genomesTrack[p-1] in colorBank.keys():
+                        color=colorBank[genomesTrack[p-1]]
+                    else:
+                        colorCodes = np.random.randint(0,256,3)    
+                        c1=colorCodes[0]/256.
+                        c2=colorCodes[1]/256.
+                        c3=colorCodes[2]/256.
+                        color=(c1,c2,c3)
+                        colorBank[genomesTrack[p-1]]=color
+                    height.append(height[-1]+1)
+                    plt.plot([time]*len(height),height,color=color)
             #time=time+1 #increase time      
             #plt.ylim(0,N+2)  
             #plt.xlim(0,time+2)
@@ -409,7 +460,8 @@ def ExtTimes(rstr):
 # end function          
 '''
 result = ExtTimes(10)
-#var = [0]
+var = [0]
+plt.show()
 #name = 'TEST'
 #store = [result,var]
 #pickle.dump(store,open(name, 'w'))
